@@ -63,13 +63,7 @@ class Main(nn.Module):
             self.encoder = Average()
         self.classifier = nn.Sequential(
             # nn.Dropout(p=0.5),
-            nn.Linear(self.input_dim, self.hidden_dim),
-            nn.Tanh(),
-            # nn.Dropout(p=0.5),
-            nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.Tanh(),
-            # nn.Dropout(p=0.5),
-            nn.Linear(self.hidden_dim, self.n_classes),
+            nn.Linear(self.input_dim, self.n_classes),
         )
 
     def forward_encoder(self, sentence):

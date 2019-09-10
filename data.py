@@ -87,12 +87,12 @@ def preprocess_data(data_folder=data_folder, train_size=0.8):
     )
 
     dev_set = data.TabularDataset(
-        path=os.path.join(transformed_path, 'dev.csv'), format='csv', fields={}
+        path=os.path.join(transformed_path, 'dev.csv'), format='csv', fields=[('id', id_field), ('text', text), ('label_a', label_a), ('label_b', label_b), ('label_c', label_c)]
     )
 
     test_set = data.TabularDataset(
         path=os.path.join(transformed_path, 'test.csv'),
-        format='csv', fields={}
+        format='csv', fields=[('id', id_field), ('text', text), ('label_a', label_a), ('label_b', label_b), ('label_c', label_c)]
     )
 
     text.build_vocab(train_set, dev_set, test_set,

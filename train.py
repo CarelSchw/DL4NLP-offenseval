@@ -105,26 +105,26 @@ def train():
         n_correct = 0
         n_tested = 0
         # for batch in val_it:
-        #     output = model.forward(batch.premise, batch.hypothesis)
-        #     scores, predictions = torch.max(output, dim=1)
+        output = model.forward(batch.text)
+        scores, predictions = torch.max(output, dim=1)
 
-        #     n_correct += (batch.label_a == predictions).sum()
-        #     n_tested += batch.label_a.shape[0]
+        n_correct += (batch.label_a == predictions).sum()
+        n_tested += batch.label_a.shape[0]
 
-        # accuracy = n_correct.item()/n_tested
-        # # writer.add_scalar('Validation accuracy', accuracy, epoch)
+        accuracy = n_correct.item()/n_tested
+        # writer.add_scalar('Validation accuracy', accuracy, epoch)
 
-        # if accuracy < prev_dev_accuracy:
-        #     optimizer.param_groups[0]['lr'] /= 5
-        #     lr = optimizer.param_groups[0]['lr']
-        # else:
-        #     prev_dev_accuracy = accuracy
-        #     best_epoch = epoch
+        if accuracy < prev_dev_accuracy:
+            optimizer.param_groups[0]['lr'] /= 5
+            lr = optimizer.param_groups[0]['lr']
+        else:
+            prev_dev_accuracy = accuracy
+            best_epoch = epoch
 
-        #     torch.save(model, os.path.join(params.outputdir,
-        #                                    params.model + "_epoch_" + str(epoch) + ".pt"))
-        # print("Validation accuracy at epoch: {} is: {}".format(
-        #     epoch, accuracy))
+            torch.save(model, os.path.join(params.outputdir,
+                                           params.model + "_epoch_" + str(epoch) + ".pt"))
+        print("Validation accuracy at epoch: {} is: {}".format(
+            epoch, accuracy))
 
         # Store model
         epoch += 1

@@ -125,3 +125,4 @@ dmypy.json
 
 .vector_cache/
 .vscode/
+savedir/
