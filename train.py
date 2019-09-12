@@ -35,12 +35,12 @@ params, _ = parser.parse_known_args()
 # writer = SummaryWriter(params.outputdir + 'runs/' + params.model)
 
 model_config = {
-    'num_embeddings': 100,# 1000,
+    'num_embeddings': 300,
     'embedding_dim': 300,
     'input_dim': 1,
     'hidden_dim': HIDDEN_LAYER_UNITS,
     'n_classes': N_CLASSES,
-    'lstm_dim': 64,# 2048,
+    'lstm_dim': 256,
     'encoder': params.model,
 }
 
