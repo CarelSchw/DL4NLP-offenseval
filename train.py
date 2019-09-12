@@ -25,6 +25,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser(description='NLI training')
 parser.add_argument("--datadir", type=str, default='dataset'),
+parser.add_argument("--save_model", type=bool, default=False),
 parser.add_argument("--outputdir", type=str,
                     default='savedir/', help="Output directory")
 parser.add_argument("--model", type=str, default='average')
@@ -124,8 +125,8 @@ def train():
         else:
             prev_dev_accuracy = accuracy
             best_epoch = epoch
-
-            torch.save(model, os.path.join(params.outputdir,
+            if (params.save_model):
+                torch.save(model, os.path.join(params.outputdir,
                                            params.model + "_epoch_" + str(epoch) + ".pt"))
 
         f1 = f1_score(batch.label_a, predictions.numpy())
