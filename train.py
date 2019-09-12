@@ -6,6 +6,9 @@ from torch import optim
 import torch
 
 import data
+
+from sklearn.metrics import f1_score
+
 from model import Main
 
 
@@ -31,12 +34,12 @@ params, _ = parser.parse_known_args()
 # writer = SummaryWriter(params.outputdir + 'runs/' + params.model)
 
 model_config = {
-    'num_embeddings': 1000,
+    'num_embeddings': 100,# 1000,
     'embedding_dim': 300,
     'input_dim': 1,
     'hidden_dim': HIDDEN_LAYER_UNITS,
     'n_classes': N_CLASSES,
-    'lstm_dim': 2048,
+    'lstm_dim': 64,# 2048,
     'encoder': params.model,
 }
 
@@ -109,6 +112,7 @@ def train():
         scores, predictions = torch.max(output, dim=1)
 
         n_correct += (batch.label_a == predictions).sum()
+
         n_tested += batch.label_a.shape[0]
 
         accuracy = n_correct.item()/n_tested
@@ -123,8 +127,11 @@ def train():
 
             torch.save(model, os.path.join(params.outputdir,
                                            params.model + "_epoch_" + str(epoch) + ".pt"))
-        print("Validation accuracy at epoch: {} is: {}".format(
-            epoch, accuracy))
+
+        f1 = f1_score(batch.label_a, predictions.numpy())
+
+        print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
+            epoch, accuracy, f1))
 
         # Store model
         epoch += 1
