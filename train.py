@@ -3,6 +3,7 @@ import os
 
 from torch import nn
 from torch import optim
+from torch import Tensor
 import torch
 
 import data
@@ -18,7 +19,7 @@ LR_DIVISION = 5
 MINIBATCH_SIZE = 64
 THRESHOLD = 10 ** -5
 HIDDEN_LAYER_UNITS = 512
-N_CLASSES = 3
+N_CLASSES = 2
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -55,7 +56,7 @@ def accuracy(predictions, targets):
 
 
 def adjust_learning_rate(optimizer, lr):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    """Sets the learning ratese to the initial LR decayed by 10 every 30 epochs"""
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -72,7 +73,8 @@ def train():
     model = Main(model_config, train_set.fields['text'].vocab)
     model.to(device)
     grad_params = [p for p in model.parameters() if p.requires_grad]
-    weight = torch.FloatTensor(N_CLASSES).fill_(1)
+    # weight = torch.FloatTensor(N_CLASSES).fill_(1)
+    weight = torch.FloatTensor([0.3, 0.7])
     ce_loss = nn.CrossEntropyLoss(weight=weight).to(device)
 
     lr = LEARNING_RATE
@@ -108,15 +110,15 @@ def train():
         # writer.add_scalar('Loss (Epoch)', train_loss_epoch, epoch)
         n_correct = 0
         n_tested = 0
-        # for batch in val_it:
-        output = model.forward(batch.text)
-        scores, predictions = torch.max(output, dim=1)
+        for batch in val_it:
+            output = model.forward(batch.text)
+            scores, predictions = torch.max(output, dim=1)
 
-        n_correct += (batch.label_a == predictions).sum()
+            n_correct += (batch.label_a == predictions).sum()
 
-        n_tested += batch.label_a.shape[0]
+            n_tested += batch.label_a.shape[0]
 
-        accuracy = n_correct.item()/n_tested
+            accuracy = n_correct.item()/n_tested
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
 
         if accuracy < prev_dev_accuracy:
@@ -127,9 +129,10 @@ def train():
             best_epoch = epoch
             if (params.save_model):
                 torch.save(model, os.path.join(params.outputdir,
-                                           params.model + "_epoch_" + str(epoch) + ".pt"))
+                                               params.model + "_epoch_" + str(epoch) + ".pt"))
 
-        f1 = f1_score(batch.label_a, predictions.numpy())
+        f1 = f1_score(Tensor.cpu(batch.label_a),
+                      Tensor.cpu(predictions).numpy())
 
         print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
             epoch, accuracy, f1))
