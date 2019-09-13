@@ -3,6 +3,7 @@ import os
 
 from torch import nn
 from torch import optim
+from torch import Tensor
 import torch
 
 import data
@@ -18,7 +19,7 @@ LR_DIVISION = 5
 MINIBATCH_SIZE = 64
 THRESHOLD = 10 ** -5
 HIDDEN_LAYER_UNITS = 512
-N_CLASSES = 3
+N_CLASSES = 2
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -55,7 +56,7 @@ def accuracy(predictions, targets):
 
 
 def adjust_learning_rate(optimizer, lr):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    """Sets the learning ratese to the initial LR decayed by 10 every 30 epochs"""
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -72,7 +73,8 @@ def train():
     model = Main(model_config, train_set.fields['text'].vocab)
     model.to(device)
     grad_params = [p for p in model.parameters() if p.requires_grad]
-    weight = torch.FloatTensor(N_CLASSES).fill_(1)
+    # weight = torch.FloatTensor(N_CLASSES).fill_(1)
+    weight = torch.FloatTensor([0.3, 0.7])
     ce_loss = nn.CrossEntropyLoss(weight=weight).to(device)
 
     lr = LEARNING_RATE
@@ -119,7 +121,10 @@ def train():
 
             n_tested += batch.label_a.shape[0]
 
-            tn, fp, fn, tp = confusion_matrix(batch.label_a, predictions.numpy()).ravel()
+            if (torch.cuda.is_available()):
+                tn, fp, fn, tp = confusion_matrix(Tensor.cpu(batch.label_a), Tensor.cpu(predictions).numpy()).ravel()            
+            else:
+                tn, fp, fn, tp = confusion_matrix(batch.label_a, predictions.numpy()).ravel()
             print (tn, fp, fn, tp)
             total_tn+=tn
             total_fp+=fp
@@ -141,8 +146,7 @@ def train():
             best_epoch = epoch
             if (params.save_model):
                 torch.save(model, os.path.join(params.outputdir,
-                                        params.model + "_epoch_" + str(epoch) + ".pt"))
-
+                                               params.model + "_epoch_" + str(epoch) + ".pt"))
 
         print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
             epoch, accuracy, f1))
