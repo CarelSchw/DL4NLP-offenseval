@@ -66,7 +66,7 @@ class Attention(nn.Module):
 
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=True, max_pool=False):
+    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False, max_pool=False):
         super().__init__()
 
         self.lstm = nn.LSTM(word_embedding_dim, lstm_dim, 1,
@@ -94,6 +94,7 @@ class LSTMEncoder(nn.Module):
         indexed_batch = sentence[0][:, sorted_idx, :]
         packed_sentence = nn.utils.rnn.pack_padded_sequence(
             indexed_batch, lengths_sorted)
+
         packed_output, (h_n, c_n) = self.lstm(packed_sentence)
 
         output, output_lengths = torch.nn.utils.rnn.pad_packed_sequence(
@@ -125,16 +126,20 @@ class Main(nn.Module):
         self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
         self.embedding.weight.data.copy_(vocab.vectors)
         self.embedding.weight.requires_grad = False
+        
+        self.bidirectional = True
+        self.use_self_attention = True
+
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
             self.encoder = LSTMEncoder(
-                self.embedding_dim, config['lstm_dim'], bidirectional=False)
+                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_self_attention=self.use_self_attention)
         if config['encoder'] == "average":
             self.input_dim = self.input_dim * 300
             self.encoder = Average()
         self.classifier = nn.Sequential(
             # nn.Dropout(p=0.5),
-            nn.Linear(self.input_dim, self.n_classes),
+            nn.Linear(self.input_dim * 2 if self.bidirectional else self.input_dim, self.n_classes),
         )
 
     def forward_encoder(self, sentence):
