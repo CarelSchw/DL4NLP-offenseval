@@ -7,7 +7,7 @@ import torch
 
 import data
 
-from sklearn.metrics import f1_score
+from sklearn.metrics import confusion_matrix
 
 from model import Main
 
@@ -40,7 +40,7 @@ model_config = {
     'input_dim': 1,
     'hidden_dim': HIDDEN_LAYER_UNITS,
     'n_classes': N_CLASSES,
-    'lstm_dim': 256,
+    'lstm_dim': 128,
     'encoder': params.model,
 }
 
@@ -108,15 +108,29 @@ def train():
         # writer.add_scalar('Loss (Epoch)', train_loss_epoch, epoch)
         n_correct = 0
         n_tested = 0
-        # for batch in val_it:
-        output = model.forward(batch.text)
-        scores, predictions = torch.max(output, dim=1)
+        f1_total = 0
+        n_batches = 0
+        total_tn, total_fp, total_fn, total_tp = 0, 0, 0, 0
+        for batch in val_it:
+            output = model.forward(batch.text)
+            scores, predictions = torch.max(output, dim=1)
 
-        n_correct += (batch.label_a == predictions).sum()
+            n_correct += (batch.label_a == predictions).sum()
 
-        n_tested += batch.label_a.shape[0]
+            n_tested += batch.label_a.shape[0]
+
+            tn, fp, fn, tp = confusion_matrix(batch.label_a, predictions.numpy()).ravel()
+            print (tn, fp, fn, tp)
+            total_tn+=tn
+            total_fp+=fp
+            total_fn+=fn
+            total_tp+=tp
 
         accuracy = n_correct.item()/n_tested
+        precision = total_tp/(total_tp+total_fp)
+        recall = total_tp/(total_tp+total_fn)
+        f1 = 2*(precision * recall) / (recall + precision)
+
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
 
         if accuracy < prev_dev_accuracy:
@@ -127,9 +141,8 @@ def train():
             best_epoch = epoch
             if (params.save_model):
                 torch.save(model, os.path.join(params.outputdir,
-                                           params.model + "_epoch_" + str(epoch) + ".pt"))
+                                        params.model + "_epoch_" + str(epoch) + ".pt"))
 
-        f1 = f1_score(batch.label_a, predictions.numpy())
 
         print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
             epoch, accuracy, f1))

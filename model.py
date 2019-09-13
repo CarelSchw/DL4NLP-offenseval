@@ -127,8 +127,8 @@ class Main(nn.Module):
         self.embedding.weight.data.copy_(vocab.vectors)
         self.embedding.weight.requires_grad = False
         
-        self.bidirectional = True
-        self.use_self_attention = True
+        self.bidirectional = False
+        self.use_self_attention = False
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
