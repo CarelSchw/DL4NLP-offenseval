@@ -175,6 +175,11 @@ def validate(test_it, best_epoch, vocab, model_config):
     model.to(device)
     n_correct = 0
     n_tested = 0
+    true_positive = [0, 0]
+    true_negative = [0, 0]
+    false_positive = [0, 0]
+    false_negative = [0, 0]
+    true_labels = [0, 0]
     for batch in test_it:
         output = model.forward(batch.text)
         scores, predictions = torch.max(output, dim=1)
