@@ -128,17 +128,19 @@ def train():
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
         macro_precision = 0.0
         macro_recall = 0.0
+        macro_f1 = 0.0
         for i in range(2):
             macro_precision += (true_positive[i] /
                                 (true_positive[i] + false_positive[i]))
             macro_recall += (true_positive[i] /
                              (true_positive[i] + false_negative[i]))
+            macro_f1 += (macro_precision*macro_recall) / \
+                (macro_precision+macro_recall)
 
         macro_precision /= 2
         macro_recall /= 2
 
-        macro_f1 = 2 * (macro_precision*macro_recall) / \
-            (macro_precision+macro_recall)
+        macro_f1 /= 2
         print(
             f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
         accuracy = n_correct.item()/n_tested
@@ -202,17 +204,19 @@ def validate(test_it, best_epoch, vocab, model_config):
     # writer.add_scalar('Validation accuracy', accuracy, epoch)
     macro_precision = 0.0
     macro_recall = 0.0
+    macro_f1 = 0.0
     for i in range(2):
         macro_precision += (true_positive[i] /
                             (true_positive[i] + false_positive[i]))
         macro_recall += (true_positive[i] /
                          (true_positive[i] + false_negative[i]))
+        macro_f1 += (macro_precision*macro_recall) / \
+            (macro_precision+macro_recall)
 
     macro_precision /= 2
     macro_recall /= 2
 
-    macro_f1 = 2 * (macro_precision*macro_recall) / \
-        (macro_precision+macro_recall)
+    macro_f1 /= 2
     print(
         f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
     accuracy = n_correct.item()/n_tested
