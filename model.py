@@ -125,7 +125,7 @@ class LSTMEncoder(nn.Module):
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, dim_model=300, num_heads=6, dim_feedforward=2048, dropout=0.1):
+    def __init__(self, dim_model=300, num_heads=12, dim_feedforward=2048, dropout=0.1):
         super().__init__()
 
         encoder_layer = nn.TransformerEncoderLayer(
@@ -161,10 +161,10 @@ class Main(nn.Module):
             self.encoder = LSTMEncoder(
                 self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_self_attention=self.use_self_attention)
         if config['encoder'] == "average":
-            self.input_dim = self.input_dim * 150
+            self.input_dim = self.input_dim * 300
             self.encoder = Average()
         if config['encoder'] == "transformer":
-            self.input_dim = self.input_dim * 150
+            self.input_dim = self.input_dim * 300
             self.encoder = TransformerEncoder()
         self.classifier = nn.Sequential(
             # nn.Dropout(p=0.5),
