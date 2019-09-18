@@ -129,10 +129,12 @@ def train():
         macro_precision = 0.0
         macro_recall = 0.0
         for i in range(2):
-            macro_precision += (true_positive[i] /
-                                (true_positive[i] + false_positive[i]))
-            macro_recall += (true_positive[i] /
-                             (true_positive[i] + false_negative[i]))
+            if true_positive[i] + false_positive[i] > 0:
+                macro_precision += (true_positive[i] /
+                                    (true_positive[i] + false_positive[i]))
+            if true_positive[i] + false_negative[i] > 0:
+                macro_recall += (true_positive[i] /
+                                 (true_positive[i] + false_negative[i]))
 
         macro_precision /= 2
         macro_recall /= 2
@@ -154,8 +156,8 @@ def train():
                 torch.save(model, os.path.join(params.outputdir,
                                                params.model + "_epoch_" + str(epoch) + ".pt"))
 
-        print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
-            epoch, accuracy, f1))
+        # print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
+        #     epoch, accuracy, macro_f1))
 
         # Store model
         epoch += 1
@@ -210,6 +212,7 @@ def validate(test_it, best_epoch, vocab, model_config):
 
     macro_f1 = 2 * (macro_precision*macro_recall) / \
         (macro_precision+macro_recall)
+    print("TEST")
     print(
         f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
     accuracy = n_correct.item()/n_tested
