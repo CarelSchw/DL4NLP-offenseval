@@ -8,7 +8,7 @@ import torch
 
 import data
 
-from sklearn.metrics import f1_score
+from sklearn.metrics import confusion_matrix
 
 from model import Main
 
@@ -41,7 +41,7 @@ model_config = {
     'input_dim': 1,
     'hidden_dim': HIDDEN_LAYER_UNITS,
     'n_classes': N_CLASSES,
-    'lstm_dim': 256,
+    'lstm_dim': 128,
     'encoder': params.model,
 }
 
@@ -153,9 +153,6 @@ def train():
             if (params.save_model):
                 torch.save(model, os.path.join(params.outputdir,
                                                params.model + "_epoch_" + str(epoch) + ".pt"))
-
-        f1 = f1_score(Tensor.cpu(batch.label_a),
-                      Tensor.cpu(predictions).numpy())
 
         print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
             epoch, accuracy, f1))

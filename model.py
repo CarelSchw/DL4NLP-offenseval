@@ -153,7 +153,7 @@ class Main(nn.Module):
         self.embedding.weight.data.copy_(vocab.vectors)
         self.embedding.weight.requires_grad = False
 
-        self.bidirectional = True
+        self.bidirectional = False
         self.use_self_attention = False
 
         if config['encoder'] == "lstm":
