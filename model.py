@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+from torch.nn.modules import LayerNorm
+
 
 import numpy as np
 
@@ -122,6 +124,23 @@ class LSTMEncoder(nn.Module):
             return torch.max(output, dim=0)[0]
 
 
+class TransformerEncoder(nn.Module):
+    def __init__(self, dim_model=300, num_heads=6, dim_feedforward=2048, dropout=0.1):
+        super().__init__()
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            dim_model, num_heads, dim_feedforward, dropout)
+        encoder_norm = LayerNorm(dim_model)
+        self.transformer = nn.TransformerEncoder(
+            encoder_layer, 1, encoder_norm)
+
+    def forward(self, sentence):
+        # print(sentence[0].shape)
+        output = self.transformer(sentence[0])
+        # print(output.shape)
+        return torch.max(output, dim=0)[0]
+
+
 class Main(nn.Module):
     def __init__(self, config, vocab):
         super().__init__()
@@ -134,16 +153,19 @@ class Main(nn.Module):
         self.embedding.weight.data.copy_(vocab.vectors)
         self.embedding.weight.requires_grad = False
 
-        self.bidirectional = False
-        self.use_self_attention = True
+        self.bidirectional = True
+        self.use_self_attention = False
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
             self.encoder = LSTMEncoder(
                 self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_self_attention=self.use_self_attention)
         if config['encoder'] == "average":
-            self.input_dim = self.input_dim * 300
+            self.input_dim = self.input_dim * 150
             self.encoder = Average()
+        if config['encoder'] == "transformer":
+            self.input_dim = self.input_dim * 150
+            self.encoder = TransformerEncoder()
         self.classifier = nn.Sequential(
             # nn.Dropout(p=0.5),
             nn.Linear(
@@ -159,4 +181,5 @@ class Main(nn.Module):
         s1 = self.embedding(text[0])
         u = self.encoder((s1, text[1]))
         features = u
+        # print(features.shape)
         return self.classifier(features)
