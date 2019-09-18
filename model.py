@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -71,14 +71,47 @@ class Attention(nn.Module):
         return representations, attentions
 
 
+# attention from Yang 2016
+class YangAttnetion(nn.Module):
+    def __init__(self, lstm_dim):
+        super().__init__()
+
+        self.word_attn = nn.Linear(lstm_dim, lstm_dim)
+        self.context_vec = nn.Linear(lstm_dim, lstm_dim, bias=False)
+
+    def forward(self, lstm_output):
+        # page 1482 top right
+        # eq 5, with tanh (from our report)
+        u_it = torch.tanh(self.word_attn(lstm_output))
+        # eq 6
+        a_it = F.softmax(self.context_vec(u_it), dim=1)
+        # eq 7
+        attns = torch.Tensor()
+        for (h, a) in zip(lstm_output, a_it):
+            h_i = a*h
+            h_i = h_i.unsqueeze(0)
+            # add them to the attention vectors
+            attns = torch.cat([attns, h_i])
+        s_i = torch.sum(attns, 0)
+        # unsqueeze to give back to FC layers
+        s_i = s_i.unsqueeze(0)
+
+        return s_i
+
+
 class LSTMEncoder(nn.Module):
-    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False, max_pool=False):
+    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=False, max_pool=False):
         super().__init__()
 
         self.lstm = nn.LSTM(word_embedding_dim, lstm_dim, 1,
                             bidirectional=bidirectional)
         self.self_att = Attention(
             lstm_dim*2 if bidirectional else lstm_dim)  # 2 is bidrectional
+
+        # yang attention
+        self.use_yang_attention = use_yang_attention
+        if (self.use_yang_attention):
+            self.yang_att = YangAttnetion(lstm_dim*2 if bidirectional else lstm_dim)
 
         self.use_mu_attention = use_mu_attention
         self.use_self_attention = use_self_attention
@@ -106,7 +139,9 @@ class LSTMEncoder(nn.Module):
 
         output, output_lengths = torch.nn.utils.rnn.pad_packed_sequence(
             packed_output, batch_first=True)
-
+        if (self.use_yang_attention):
+            output = self.yang_att(output)
+            
         if (self.use_mu_attention):
             output = self.attention(output, h_n)
 
@@ -135,12 +170,13 @@ class Main(nn.Module):
         self.embedding.weight.requires_grad = False
 
         self.bidirectional = False
-        self.use_self_attention = True
+        self.use_self_attention = False
+        self.use_yang_attention = True
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
             self.encoder = LSTMEncoder(
-                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_self_attention=self.use_self_attention)
+                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_self_attention=self.use_self_attention, use_yang_attention=self.use_yang_attention)
         if config['encoder'] == "average":
             self.input_dim = self.input_dim * 300
             self.encoder = Average()

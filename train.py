@@ -141,8 +141,7 @@ def train():
         macro_recall /= 2
 
         macro_f1 /= 2
-        print(
-            f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
+        print(f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
         accuracy = n_correct.item()/n_tested
 
         if accuracy <= prev_dev_accuracy:
