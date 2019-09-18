@@ -46,15 +46,6 @@ model_config = {
 }
 
 
-def accuracy(predictions, targets):
-    correct = torch.sum(torch.diag(torch.mm(predictions,
-                                            targets.transpose(1, 0))).round())
-
-    denom = targets.shape[0] - (predictions == 0).sum(dim=1)
-    accuracy = correct / denom
-    return accuracy
-
-
 def adjust_learning_rate(optimizer, lr):
     """Sets the learning ratese to the initial LR decayed by 10 every 30 epochs"""
     for param_group in optimizer.param_groups:
@@ -110,37 +101,52 @@ def train():
         # writer.add_scalar('Loss (Epoch)', train_loss_epoch, epoch)
         n_correct = 0
         n_tested = 0
-        f1_total = 0
-        n_batches = 0
-        total_tn, total_fp, total_fn, total_tp = 0, 0, 0, 0
+        true_positive = [0, 0]
+        true_negative = [0, 0]
+        false_positive = [0, 0]
+        false_negative = [0, 0]
+        true_labels = [0, 0]
         for batch in val_it:
             output = model.forward(batch.text)
             scores, predictions = torch.max(output, dim=1)
 
-            n_correct += (batch.label_a == predictions).sum()
+            for i in range(2):
+                true_labels = (batch.label_a == i).nonzero()
+                false_labels = (batch.label_a != i).nonzero()
+                true_positive[i] += (predictions[true_labels]
+                                     == i).sum().item()
+                false_negative[i] += (predictions[true_labels]
+                                      != i).sum().item()
+                false_positive[i] += (predictions[false_labels]
+                                      == i).sum().item()
+                true_negative[i] += (predictions[false_labels]
+                                     != i).sum().item()
 
+            n_correct += (batch.label_a == predictions).sum()
             n_tested += batch.label_a.shape[0]
 
-            if (torch.cuda.is_available()):
-                tn, fp, fn, tp = confusion_matrix(Tensor.cpu(batch.label_a), Tensor.cpu(predictions).numpy()).ravel()            
-            else:
-                tn, fp, fn, tp = confusion_matrix(batch.label_a, predictions.numpy()).ravel()
-            print (tn, fp, fn, tp)
-            total_tn+=tn
-            total_fp+=fp
-            total_fn+=fn
-            total_tp+=tp
-
-        accuracy = n_correct.item()/n_tested
-        precision = total_tp/(total_tp+total_fp)
-        recall = total_tp/(total_tp+total_fn)
-        f1 = 2*(precision * recall) / (recall + precision)
-
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
+        macro_precision = 0.0
+        macro_recall = 0.0
+        for i in range(2):
+            macro_precision += (true_positive[i] /
+                                (true_positive[i] + false_positive[i]))
+            macro_recall += (true_positive[i] /
+                             (true_positive[i] + false_negative[i]))
 
-        if accuracy < prev_dev_accuracy:
+        macro_precision /= 2
+        macro_recall /= 2
+
+        macro_f1 = 2 * (macro_precision*macro_recall) / \
+            (macro_precision+macro_recall)
+        print(
+            f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
+        accuracy = n_correct.item()/n_tested
+
+        if accuracy <= prev_dev_accuracy:
             optimizer.param_groups[0]['lr'] /= 5
             lr = optimizer.param_groups[0]['lr']
+            print(f"lr: {lr} and threshold: {THRESHOLD}")
         else:
             prev_dev_accuracy = accuracy
             best_epoch = epoch
@@ -153,6 +159,64 @@ def train():
 
         # Store model
         epoch += 1
+    validate(test_it, best_epoch,
+             train_set.fields['text'].vocab, model_config)
+
+
+def validate(test_it, best_epoch, vocab, model_config):
+    # Load best model
+    model = torch.load(os.path.join(params.outputdir,
+                                    params.model + "_epoch_" + str(best_epoch) + ".pt"))
+
+    model.eval()
+    model.to(device)
+    n_correct = 0
+    n_tested = 0
+    true_positive = [0, 0]
+    true_negative = [0, 0]
+    false_positive = [0, 0]
+    false_negative = [0, 0]
+    true_labels = [0, 0]
+    for batch in test_it:
+        output = model.forward(batch.text)
+        scores, predictions = torch.max(output, dim=1)
+
+        for i in range(2):
+            true_labels = (batch.label_a == i).nonzero()
+            false_labels = (batch.label_a != i).nonzero()
+            true_positive[i] += (predictions[true_labels]
+                                 == i).sum().item()
+            false_negative[i] += (predictions[true_labels]
+                                  != i).sum().item()
+            false_positive[i] += (predictions[false_labels]
+                                  == i).sum().item()
+            true_negative[i] += (predictions[false_labels]
+                                 != i).sum().item()
+
+        n_correct += (batch.label_a == predictions).sum()
+        n_tested += batch.label_a.shape[0]
+
+    # writer.add_scalar('Validation accuracy', accuracy, epoch)
+    macro_precision = 0.0
+    macro_recall = 0.0
+    for i in range(2):
+        macro_precision += (true_positive[i] /
+                            (true_positive[i] + false_positive[i]))
+        macro_recall += (true_positive[i] /
+                         (true_positive[i] + false_negative[i]))
+
+    macro_precision /= 2
+    macro_recall /= 2
+
+    macro_f1 = 2 * (macro_precision*macro_recall) / \
+        (macro_precision+macro_recall)
+    print(
+        f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
+    accuracy = n_correct.item()/n_tested
+
+    print('Test accuracy', accuracy)
+    torch.save(model, os.path.join(
+        params.outputdir, params.model + "_best.pt"))
 
 
 if __name__ == "__main__":
