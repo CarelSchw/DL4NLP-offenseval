@@ -92,6 +92,7 @@ class YangAttnetion(nn.Module):
             h_i = h_i.unsqueeze(0)
             # add them to the attention vectors
             attns = torch.cat([attns, h_i])
+
         s_i = torch.sum(attns, 0)
         # unsqueeze to give back to FC layers
         s_i = s_i.unsqueeze(0)
