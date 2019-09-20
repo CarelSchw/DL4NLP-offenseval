@@ -155,6 +155,7 @@ def train():
                 torch.save(model, os.path.join(params.outputdir,
                                                params.model + "_epoch_" + str(epoch) + ".pt"))
 
+
         print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
             epoch, accuracy, macro_f1))
 
@@ -211,6 +212,7 @@ def validate(test_it, best_epoch, vocab, model_config):
 
     macro_f1 = 2 * (macro_precision*macro_recall) / \
         (macro_precision+macro_recall)
+    print("TEST")
     print(
         f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
     accuracy = n_correct.item()/n_tested
