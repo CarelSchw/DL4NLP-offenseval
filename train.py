@@ -26,10 +26,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser(description='NLI training')
 parser.add_argument("--datadir", type=str, default='dataset'),
-parser.add_argument("--save_model", type=bool, default=False),
+parser.add_argument("--save_model", type=bool, default=True),
 parser.add_argument("--outputdir", type=str,
                     default='savedir/', help="Output directory")
-parser.add_argument("--model", type=str, default='lstm')
+parser.add_argument("--model", type=str, default='transformer')
 
 params, _ = parser.parse_known_args()
 
@@ -54,6 +54,7 @@ def adjust_learning_rate(optimizer, lr):
 
 def train():
     # get batch iterator
+    print("preprocess")
     train_set, val_set, test_set = data.preprocess_data(
         data_folder=params.datadir)
 
@@ -72,9 +73,8 @@ def train():
     epoch = 1
     prev_dev_accuracy = 0
     optimizer = optim.SGD(grad_params, lr)
-    print(THRESHOLD)
     best_epoch = 0
-    while lr > THRESHOLD:
+    while epoch < 100:
         # writer.add_scalar(
         #     'Learning rate', optimizer.param_groups[0]['lr'], epoch)
         optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * \
@@ -128,10 +128,10 @@ def train():
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
         macro_precision = 0.0
         macro_recall = 0.0
-        non_zero_devision = 1e-5
+        non_zero_devision = 1e-3
         for i in range(2):
             macro_precision += (true_positive[i] /
-                                (true_positive[i] + false_positive[i]) + non_zero_devision)
+                                (true_positive[i] + false_positive[i] + non_zero_devision))
             macro_recall += (true_positive[i] /
                              (true_positive[i] + false_negative[i] + non_zero_devision))
 
