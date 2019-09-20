@@ -29,7 +29,7 @@ parser.add_argument("--datadir", type=str, default='dataset'),
 parser.add_argument("--save_model", type=bool, default=False),
 parser.add_argument("--outputdir", type=str,
                     default='savedir/', help="Output directory")
-parser.add_argument("--model", type=str, default='average')
+parser.add_argument("--model", type=str, default='lstm')
 
 params, _ = parser.parse_known_args()
 
@@ -128,11 +128,12 @@ def train():
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
         macro_precision = 0.0
         macro_recall = 0.0
+        non_zero_devision = 1e-5
         for i in range(2):
             macro_precision += (true_positive[i] /
-                                (true_positive[i] + false_positive[i]))
+                                (true_positive[i] + false_positive[i]) + non_zero_devision)
             macro_recall += (true_positive[i] /
-                             (true_positive[i] + false_negative[i]))
+                             (true_positive[i] + false_negative[i] + non_zero_devision))
 
         macro_precision /= 2
         macro_recall /= 2
@@ -155,7 +156,7 @@ def train():
                                                params.model + "_epoch_" + str(epoch) + ".pt"))
 
         print("Validation accuracy at epoch: {} is: {}, f1 {}".format(
-            epoch, accuracy, f1))
+            epoch, accuracy, macro_f1))
 
         # Store model
         epoch += 1

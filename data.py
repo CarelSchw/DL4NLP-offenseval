@@ -95,8 +95,7 @@ def preprocess_data(data_folder=data_folder, train_size=0.8):
         format='csv', fields=[('id', id_field), ('text', text), ('label_a', label_a), ('label_b', label_b), ('label_c', label_c)]
     )
 
-    text.build_vocab(train_set, dev_set, test_set,
-                     vectors="glove.840B.300d")
+    text.build_vocab(train_set, dev_set, test_set, vectors="glove.840B.300d")
     label_a.build_vocab(train_set, dev_set, test_set)
     label_b.build_vocab(train_set, dev_set, test_set)
     label_c.build_vocab(train_set, dev_set, test_set)
