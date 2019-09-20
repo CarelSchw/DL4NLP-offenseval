@@ -128,6 +128,8 @@ def train():
         # writer.add_scalar('Validation accuracy', accuracy, epoch)
         macro_precision = 0.0
         macro_recall = 0.0
+        macro_f1 = 0.0
+
         non_zero_devision = 1e-3
         for i in range(2):
             macro_precision += (true_positive[i] /
@@ -201,6 +203,7 @@ def validate(test_it, best_epoch, vocab, model_config):
     # writer.add_scalar('Validation accuracy', accuracy, epoch)
     macro_precision = 0.0
     macro_recall = 0.0
+    macro_f1 = 0.0
     for i in range(2):
         macro_precision += (true_positive[i] /
                             (true_positive[i] + false_positive[i]))
