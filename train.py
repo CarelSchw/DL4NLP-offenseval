@@ -145,7 +145,7 @@ def train():
         accuracy = n_correct.item()/n_tested
 
         if accuracy <= prev_dev_accuracy:
-            optimizer.param_groups[0]['lr'] /= 5
+            optimizer.param_groups[0]['lr'] /= 2
             lr = optimizer.param_groups[0]['lr']
             print(f"lr: {lr} and threshold: {THRESHOLD}")
         else:
