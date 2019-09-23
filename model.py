@@ -1,8 +1,10 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+from torch.autograd import Variable as V
+import math
 import numpy as np
+from allennlp.modules.augmented_lstm import AugmentedLstm
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -16,7 +18,6 @@ class Average(nn.Module):
     def forward(self, sentence):
         # print(sentence)
         return sentence[0].mean(dim=0)
-
 
 # attention layer code inspired from: https://discuss.pytorch.org/t/self-attention-on-words-and-masking/5671/4
 class Attention(nn.Module):
@@ -77,7 +78,7 @@ class YangAttnetion(nn.Module):
         super().__init__()
 
         self.word_attn = nn.Linear(lstm_dim, lstm_dim)
-        self.context_vec = nn.Linear(lstm_dim, lstm_dim, bias=False)
+        self.context_vec = nn.Linear(lstm_dim, 1, bias=False)
 
     def forward(self, lstm_output):
         # page 1482 top right
@@ -93,19 +94,19 @@ class YangAttnetion(nn.Module):
             # add them to the attention vectors
             attns = torch.cat([attns, h_i])
 
-        s_i = torch.sum(attns, 0)
+        s_i = torch.sum(attns, 1)
         # unsqueeze to give back to FC layers
         s_i = s_i.unsqueeze(0)
 
         return s_i
 
-
 class LSTMEncoder(nn.Module):
-    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=False, max_pool=False):
+    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=True, max_pool=False):
         super().__init__()
 
-        self.lstm = nn.LSTM(word_embedding_dim, lstm_dim, 1,
-                            bidirectional=bidirectional)
+        self.lstm_dim = lstm_dim
+        self.emb_dim = word_embedding_dim
+        self.lstm =  AugmentedLstm(word_embedding_dim, lstm_dim, recurrent_dropout_probability=0.5) # nn.LSTM(word_embedding_dim, lstm_dim, 1, bidirectional=bidirectional)
         self.self_att = Attention(
             lstm_dim*2 if bidirectional else lstm_dim)  # 2 is bidrectional
 
