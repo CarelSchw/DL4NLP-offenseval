@@ -1,10 +1,11 @@
 import torch
 from torch import nn
-
+from torch.functional import F
 from torch.nn.modules import LayerNorm
 
 
 import numpy as np
+from allennlp.modules.augmented_lstm import AugmentedLstm
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -19,83 +20,83 @@ class Average(nn.Module):
         # print(sentence)
         return sentence[0].mean(dim=0)
 
+# input dropout
+# from pytorchnlp https://pytorchnlp.readthedocs.io/en/latest/_modules/torchnlp/nn/lock_dropout.html
+class LockedDropout(nn.Module):
+    """ LockedDropout applies the same dropout mask to every time step.
+    Args:
+        p (float): Probability of an element in the dropout mask to be zeroed.
+    """
 
-# attention layer code inspired from: https://discuss.pytorch.org/t/self-attention-on-words-and-masking/5671/4
-class Attention(nn.Module):
-    def __init__(self, hidden_size):
-        super(Attention, self).__init__()
-
-        self.hidden_size = hidden_size
-        self.device = device
-
-        self.att_weights = nn.Parameter(
-            torch.Tensor(1, hidden_size), requires_grad=True)
-
-        # Vaswani et al 2017
-        stdv = 1.0 / np.sqrt(self.hidden_size)
-        for weight in self.att_weights:
-            nn.init.uniform_(weight, -stdv, stdv)
-
-    def forward(self, inputs, lengths):
-        batch_size, max_len = inputs.size()[:2]
-
-        # apply attention layer
-        weights = torch.bmm(inputs,
-                            self.att_weights  # (1, hidden_size)
-                            .permute(1, 0)  # (hidden_size, 1)
-                            .unsqueeze(0)  # (1, hidden_size, 1)
-                            # (batch_size, hidden_size, 1)
-                            .repeat(batch_size, 1, 1)
-                            )
-
-        attentions = torch.softmax(
-            torch.nn.functional.relu(weights.squeeze()), dim=-1)
-
-       # create mask based on the sentence lengths
-        mask = torch.ones(attentions.size(),
-                          requires_grad=True).to(device)
-        for i, l in enumerate(lengths):  # skip the first sentence
-            if l < max_len:
-                mask[i, l:] = 0
-        # apply mask and renormalize attention scores (weights)
-        masked = attentions * mask
-        _sums = masked.sum(-1).unsqueeze(-1)  # sums per row
-
-        attentions = masked.div(_sums)
-
-        # apply attention weights
-        weighted = torch.mul(
-            inputs, attentions.unsqueeze(-1).expand_as(inputs))
-
-        # get the final fixed vector representations of the sentences
-        representations = weighted.sum(1).squeeze()
-
-        return representations, attentions
-
-
-class LSTMEncoder(nn.Module):
-    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False, max_pool=False):
+    def __init__(self, p=0.5):
+        self.p = p
         super().__init__()
 
-        self.lstm = nn.LSTM(word_embedding_dim, lstm_dim, 1,
-                            bidirectional=bidirectional)
-        self.self_att = Attention(
-            lstm_dim*2 if bidirectional else lstm_dim)  # 2 is bidrectional
+    def forward(self, x):
+        """
+        Args:
+            x (:class:`torch.FloatTensor` [sequence length, batch size, rnn hidden size]): Input to
+                apply dropout too.
+        """
+        if not self.training or not self.p:
+            return x
+        x = x.clone()
+        mask = x.new_empty(1, x.size(1), x.size(2), requires_grad=False).bernoulli_(1 - self.p)
+        mask = mask.div_(1 - self.p)
+        mask = mask.expand_as(x)
+        return x * mask
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+            + 'p=' + str(self.p) + ')'
+
+
+# attention from Yang 2016
+class YangAttnetion(nn.Module):
+    def __init__(self, lstm_dim):
+        super().__init__()
+
+        self.word_attn = nn.Linear(lstm_dim, lstm_dim)
+        self.context_vec = nn.Linear(lstm_dim, 1, bias=False)
+
+    def forward(self, lstm_output):
+        # page 1482 top right
+        # eq 5, with tanh (from our report)
+        u_it = torch.tanh(self.word_attn(lstm_output))
+        # eq 6
+        a_it = F.softmax(self.context_vec(u_it), dim=1)
+        # eq 7
+        attns = torch.Tensor()
+        for (h, a) in zip(lstm_output, a_it):
+            h_i = a*h
+            h_i = h_i.unsqueeze(0)
+            # add them to the attention vectors
+            attns = torch.cat([attns, h_i])
+
+        s_i = torch.sum(attns, 1)
+        # unsqueeze to give back to FC layers
+        s_i = s_i.unsqueeze(0)
+
+        return s_i
+
+class LSTMEncoder(nn.Module):
+    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=True, max_pool=False):
+        super().__init__()
+
+        self.lstm_dim = lstm_dim
+        self.emb_dim = word_embedding_dim
+        self.lstm =  AugmentedLstm(word_embedding_dim, lstm_dim, recurrent_dropout_probability=0.5) # nn.LSTM(word_embedding_dim, lstm_dim, 1, bidirectional=bidirectional)
+       
+
+        # yang attention
+        self.use_yang_attention = use_yang_attention
+        if (self.use_yang_attention):
+            self.yang_att = YangAttnetion(lstm_dim*2 if bidirectional else lstm_dim)
 
         self.use_mu_attention = use_mu_attention
         self.use_self_attention = use_self_attention
 
         self.max_pool = max_pool
-
-    # TODO: check if this is correct multiplicative attention
-    def attention(self, rnn_out, state):
-        merged_state = torch.cat([s for s in state], 1)
-        merged_state = merged_state.squeeze(0).unsqueeze(2)
-        # (batch, seq_len, cell_size) * (batch, cell_size, 1) = (batch, seq_len, 1)
-        weights = torch.bmm(rnn_out, merged_state)
-        weights = torch.nn.functional.softmax(weights.squeeze(2)).unsqueeze(2)
-        # (batch, cell_size, seq_len) * (batch, seq_len, 1) = (batch, cell_size, 1)
-        return torch.bmm(torch.transpose(rnn_out, 1, 2), weights).squeeze(2)
 
     def forward(self, sentence):
         lengths_sorted, sorted_idx = torch.sort(sentence[1], descending=True)
@@ -108,7 +109,9 @@ class LSTMEncoder(nn.Module):
 
         output, output_lengths = torch.nn.utils.rnn.pad_packed_sequence(
             packed_output, batch_first=True)
-
+        if (self.use_yang_attention):
+            output = self.yang_att(output)
+            
         if (self.use_mu_attention):
             output = self.attention(output, h_n)
 
@@ -154,12 +157,12 @@ class Main(nn.Module):
         self.embedding.weight.requires_grad = False
 
         self.bidirectional = False
-        self.use_self_attention = False
+        self.use_yang_attention = True
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
             self.encoder = LSTMEncoder(
-                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_self_attention=self.use_self_attention)
+                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, se_yang_attention=self.use_yang_attention)
         if config['encoder'] == "average":
             self.input_dim = self.input_dim * 300
             self.encoder = Average()
@@ -179,7 +182,8 @@ class Main(nn.Module):
 
     def forward(self, text):
         s1 = self.embedding(text[0])
-        u = self.encoder((s1, text[1]))
+        s1_dropped = LockedDropout(p=0.2)(s1)
+        u = self.encoder((s1_dropped, text[1]))
         features = u
         # print(features.shape)
         return self.classifier(features)

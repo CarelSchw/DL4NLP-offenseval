@@ -209,6 +209,8 @@ def validate(test_it, best_epoch, vocab, model_config):
                             (true_positive[i] + false_positive[i]))
         macro_recall += (true_positive[i] /
                          (true_positive[i] + false_negative[i]))
+        macro_f1 += (macro_precision*macro_recall) / \
+            (macro_precision+macro_recall)
 
         macro_f1 += 2 * (macro_precision*macro_recall) / \
             (macro_precision+macro_recall)
@@ -217,7 +219,6 @@ def validate(test_it, best_epoch, vocab, model_config):
     macro_recall /= 2
 
     macro_f1 /= 2
-    print("TEST")
     print(
         f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
     accuracy = n_correct.item()/n_tested
