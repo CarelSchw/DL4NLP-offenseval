@@ -162,7 +162,7 @@ class Main(nn.Module):
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
             self.encoder = LSTMEncoder(
-                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, se_yang_attention=self.use_yang_attention)
+                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_yang_attention=self.use_yang_attention)
         if config['encoder'] == "average":
             self.input_dim = self.input_dim * 300
             self.encoder = Average()
