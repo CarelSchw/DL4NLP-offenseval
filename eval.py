@@ -95,7 +95,7 @@ def predict(model, x, num_samples=1000):
     for batch in x:
         dropout_preds_batch = np.array([])
         for _ in range(num_samples):
-            logits = model(batch.text)[:,1]
+            logits = torch.nn.functional.softmax(model(batch.text))[:, 1]
             dropout_preds_batch = np.vstack([dropout_preds_batch, logits.cpu().detach().numpy()]
                       ) if dropout_preds_batch.size else logits.cpu().detach().numpy()
         dropout_preds = np.vstack([dropout_preds, dropout_preds_batch.transpose((1, 0))]
@@ -125,7 +125,7 @@ def get_boxplots(data):
         concat_conf_data = []
         for i in range(n_models):
             conf_data = get_confusion_data(data[0][i], data[1][i], data[2][i])
-            concat_conf_data.append(conf_data[j].var(axis=1))
+            concat_conf_data.append(conf_data[j].mean(axis=1))
         axes[index].boxplot(concat_conf_data, positions=range(n_models))
     # fig.title('Confusion matrix')
     axes[(0, 0)].set_title('Truth: 1', fontsize=15)

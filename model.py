@@ -157,7 +157,7 @@ class Main(nn.Module):
         self.embedding.weight.requires_grad = False
 
         self.bidirectional = False
-        self.use_yang_attention = False
+        self.use_yang_attention = True
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
