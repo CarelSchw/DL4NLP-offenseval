@@ -66,7 +66,7 @@ class YangAttnetion(nn.Module):
         # eq 6
         a_it = F.softmax(self.context_vec(u_it), dim=1)
         # eq 7
-        attns = torch.Tensor()
+        attns = torch.Tensor().to(device)
         for (h, a) in zip(lstm_output, a_it):
             h_i = a*h
             h_i = h_i.unsqueeze(0)
@@ -80,12 +80,12 @@ class YangAttnetion(nn.Module):
         return s_i
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=True, max_pool=False):
+    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=False, max_pool=False):
         super().__init__()
 
         self.lstm_dim = lstm_dim
         self.emb_dim = word_embedding_dim
-        self.lstm =  AugmentedLstm(word_embedding_dim, lstm_dim, recurrent_dropout_probability=0.5) # nn.LSTM(word_embedding_dim, lstm_dim, 1, bidirectional=bidirectional)
+        self.lstm =  AugmentedLstm(word_embedding_dim, lstm_dim, recurrent_dropout_probability=0.2) # nn.LSTM(word_embedding_dim, lstm_dim, 1, bidirectional=bidirectional)
        
 
         # yang attention
@@ -128,7 +128,7 @@ class LSTMEncoder(nn.Module):
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, dim_model=300, num_heads=12, dim_feedforward=2048, dropout=0.1):
+    def __init__(self, dim_model=300, num_heads=12, dim_feedforward=2048, dropout=0.2):
         super().__init__()
 
         encoder_layer = nn.TransformerEncoderLayer(
@@ -157,7 +157,7 @@ class Main(nn.Module):
         self.embedding.weight.requires_grad = False
 
         self.bidirectional = False
-        self.use_yang_attention = True
+        self.use_yang_attention = False
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
@@ -170,9 +170,10 @@ class Main(nn.Module):
             self.input_dim = self.input_dim * 300
             self.encoder = TransformerEncoder()
         self.classifier = nn.Sequential(
-            # nn.Dropout(p=0.5),
+            nn.Dropout(p=0.2),
             nn.Linear(
                 self.input_dim * 2 if self.bidirectional else self.input_dim, self.n_classes),
+            nn.Dropout(p=0.2),
         )
 
     def forward_encoder(self, sentence):
@@ -182,8 +183,8 @@ class Main(nn.Module):
 
     def forward(self, text):
         s1 = self.embedding(text[0])
-        s1_dropped = LockedDropout(p=0.2)(s1)
-        u = self.encoder((s1_dropped, text[1]))
+        s1_dropped = LockedDropout(p=0.2)(s1).to(device)
+        u = self.encoder((s1_dropped, text[1].to(device)))
         features = u
         # print(features.shape)
         return self.classifier(features)

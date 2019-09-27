@@ -74,7 +74,7 @@ def train():
     prev_dev_accuracy = 0
     optimizer = optim.SGD(grad_params, lr)
     best_epoch = 0
-    while epoch < 100:
+    while epoch < 20:
         # writer.add_scalar(
         #     'Learning rate', optimizer.param_groups[0]['lr'], epoch)
         optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * \
@@ -130,14 +130,16 @@ def train():
         macro_recall = 0.0
         macro_f1 = 0.0
 
-        non_zero_devision = 1e-3
+        # non_zero_devision = 1e-3
         for i in range(2):
-            macro_precision += (true_positive[i] /
-                                (true_positive[i] + false_positive[i] + non_zero_devision))
-            macro_recall += (true_positive[i] /
-                             (true_positive[i] + false_negative[i] + non_zero_devision))
-            macro_f1 += 2 * (macro_precision*macro_recall) / \
-                (macro_precision+macro_recall)
+            precision = (true_positive[i] /
+                         (true_positive[i] + false_positive[i]))
+            macro_precision += precision
+            recall = (true_positive[i] /
+                      (true_positive[i] + false_negative[i]))
+            macro_recall += recall
+            macro_f1 += 2 * (precision*recall) / \
+                (precision+precision)
 
         macro_precision /= 2
         macro_recall /= 2
@@ -205,15 +207,14 @@ def validate(test_it, best_epoch, vocab, model_config):
     macro_recall = 0.0
     macro_f1 = 0.0
     for i in range(2):
-        macro_precision += (true_positive[i] /
-                            (true_positive[i] + false_positive[i]))
-        macro_recall += (true_positive[i] /
-                         (true_positive[i] + false_negative[i]))
-        macro_f1 += (macro_precision*macro_recall) / \
-            (macro_precision+macro_recall)
-
-        macro_f1 += 2 * (macro_precision*macro_recall) / \
-            (macro_precision+macro_recall)
+        precision = (true_positive[i] /
+                        (true_positive[i] + false_positive[i]))
+        macro_precision += precision
+        recall = (true_positive[i] /
+                    (true_positive[i] + false_negative[i]))
+        macro_recall += recall
+        macro_f1 += 2 * (precision*recall) / \
+            (precision+precision)
 
     macro_precision /= 2
     macro_recall /= 2
@@ -226,6 +227,29 @@ def validate(test_it, best_epoch, vocab, model_config):
     print('Test accuracy', accuracy)
     torch.save(model, os.path.join(
         params.outputdir, params.model + "_best.pt"))
+    predict(model, test_it)
+
+def get_prediction(model, x):
+    model.eval()
+    model.to(device)
+    for batch in x:
+        logits = model(batch)
+        scores, predictions = torch.max(logits, dim=1)
+
+
+def predict(model, x, num_samples=1000):
+    prediction = get_prediction(model, x)
+    model.train()
+    model.to(device)
+    y1 = []
+    for batch in x:
+        y1_batch = []
+        for _ in range(num_samples):
+            logits = model(batch)
+            y1_batch.append(logits.numpy())
+        y1.append(y1_batch)
+
+
 
 
 if __name__ == "__main__":
