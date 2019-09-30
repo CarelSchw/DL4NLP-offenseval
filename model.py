@@ -77,7 +77,7 @@ class YangAttnetion(nn.Module):
         # unsqueeze to give back to FC layers
         s_i = s_i.unsqueeze(0)
 
-        return s_i
+        return s_i, attns
 
 class LSTMEncoder(nn.Module):
     def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=False, max_pool=False):
@@ -110,7 +110,7 @@ class LSTMEncoder(nn.Module):
         output, output_lengths = torch.nn.utils.rnn.pad_packed_sequence(
             packed_output, batch_first=True)
         if (self.use_yang_attention):
-            output = self.yang_att(output)
+            output,attns = self.yang_att(output)
             
         if (self.use_mu_attention):
             output = self.attention(output, h_n)
