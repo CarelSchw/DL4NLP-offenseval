@@ -84,6 +84,7 @@ def get_prediction(model, x):
         ground_truth_batch = batch.label_a.unsqueeze(1).cpu().detach().numpy()
         ground_truth = np.vstack(
             [ground_truth, ground_truth_batch]) if ground_truth.size else ground_truth_batch
+        
 
     return ground_truth, predictions
 

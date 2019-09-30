@@ -80,12 +80,12 @@ class YangAttnetion(nn.Module):
         return s_i, attns
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=False, max_pool=False):
+    def __init__(self, word_embedding_dim, lstm_dim, bidirectional=False, use_mu_attention=False, use_self_attention=False,use_yang_attention=False, max_pool=False, dropout=0.2):
         super().__init__()
 
         self.lstm_dim = lstm_dim
         self.emb_dim = word_embedding_dim
-        self.lstm =  AugmentedLstm(word_embedding_dim, lstm_dim, recurrent_dropout_probability=0.2) # nn.LSTM(word_embedding_dim, lstm_dim, 1, bidirectional=bidirectional)
+        self.lstm =  AugmentedLstm(word_embedding_dim, lstm_dim, recurrent_dropout_probability=dropout) # nn.LSTM(word_embedding_dim, lstm_dim, 1, bidirectional=bidirectional)
        
 
         # yang attention
@@ -152,6 +152,8 @@ class Main(nn.Module):
         self.input_dim = config['input_dim']
         self.hidden_dim = config['hidden_dim']
         self.n_classes = config['n_classes']
+        self.dropout = config['dropout']
+
         self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
         self.embedding.weight.data.copy_(vocab.vectors)
         self.embedding.weight.requires_grad = False
@@ -159,21 +161,22 @@ class Main(nn.Module):
         self.bidirectional = False
         self.use_yang_attention = True
 
+
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']
             self.encoder = LSTMEncoder(
-                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_yang_attention=self.use_yang_attention)
+                self.embedding_dim, config['lstm_dim'], bidirectional=self.bidirectional, use_yang_attention=self.use_yang_attention, dropout=self.dropout)
         if config['encoder'] == "average":
             self.input_dim = self.input_dim * 300
             self.encoder = Average()
         if config['encoder'] == "transformer":
             self.input_dim = self.input_dim * 300
-            self.encoder = TransformerEncoder()
+            self.encoder = TransformerEncoder(dropout=self.dropout)
         self.classifier = nn.Sequential(
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=self.dropout),
             nn.Linear(
                 self.input_dim * 2 if self.bidirectional else self.input_dim, self.n_classes),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=self.dropout),
         )
 
     def forward_encoder(self, sentence):
