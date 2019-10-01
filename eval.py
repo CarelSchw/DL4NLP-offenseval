@@ -95,12 +95,13 @@ def predict(model, x, num_samples=1000):
     dropout_preds = np.array([])
     for batch in x:
         dropout_preds_batch = np.array([])
-        for _ in range(num_samples):
-            logits = torch.nn.functional.softmax(model(batch.text))[:, 1]
+        for i in range(num_samples):
+            logits = torch.nn.functional.softmax(model(batch.text))[:,1]
             dropout_preds_batch = np.vstack([dropout_preds_batch, logits.cpu().detach().numpy()]
                       ) if dropout_preds_batch.size else logits.cpu().detach().numpy()
         dropout_preds = np.vstack([dropout_preds, dropout_preds_batch.transpose((1, 0))]
                        ) if dropout_preds.size else dropout_preds_batch.transpose((1, 0))
+
     return ground_truth, predictions, dropout_preds
 
 def get_confusion_data(ground_truth, prediction, dropout_pred):
@@ -154,12 +155,32 @@ if __name__ == "__main__":
     np.savetxt('predictions.csv', predictions)
     np.savetxt('dropout_preds.csv', dropout_preds)
     np.savetxt('ground_truth.csv', ground_truth)
+
+        
+    max_indices = dropout_preds.var(axis=1).argsort(axis=0)[:5]
+    min_indices = dropout_preds.var(axis=1).argsort(axis=0)[-5:]
+
+    # print (max_indices)
+    # print (min_indices)
+    # print (dropout_preds[max_indices[0]].var())
+    # print (dropout_preds[min_indices[0]].var())
+
+    tweet_list = open('./dataset/test.csv', "r").readlines()
+    print ('easiest tweets:')
+    print ([tweet_list[i][6:] for i in max_indices])
+    print ('hardest tweets')
+    print ([tweet_list[i][6:] for i in min_indices])
+
+
     ground_truth = ground_truth.reshape(
         1, ground_truth.shape[0], ground_truth.shape[1])
     predictions = predictions.reshape(1, predictions.shape[0], predictions.shape[1])
     dropout_preds = dropout_preds.reshape(1, dropout_preds.shape[0], dropout_preds.shape[1])
     
     data = (ground_truth, predictions, dropout_preds)
+
+
+
 
     # data = get_confusion_data(ground_truth, predictions, dropout_preds)
     get_boxplots(data)

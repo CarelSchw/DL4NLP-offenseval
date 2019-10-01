@@ -18,6 +18,7 @@ def infer_single(tweet, checkpoint):
 def infer(checkpoint, input_file, output_file):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Loading checkpoint...")
+    print (checkpoint)
     model = torch.load(checkpoint, map_location=device)
 
     print("Building vocabulary...")
@@ -35,6 +36,7 @@ def infer(checkpoint, input_file, output_file):
         repeat=False,
         shuffle=False,
     )
+
     vocab = dataset.fields['text'].vocab
     model.embedding = torch.nn.Embedding(
         vocab.vectors.shape[0], 300)
@@ -42,19 +44,24 @@ def infer(checkpoint, input_file, output_file):
     model.eval()
     model.to(device)
     predictions = []
+    i = 0
     for b in iterator:
-        print(b.text)
         output = model.forward(b.text)
         y = torch.argmax(output, dim=1)
         y.detach().cpu().numpy()
         for p in y.tolist():
-            print(p)
             if p == 1:
-                predictions.append("Offensive\n")
+                predictions.append("{}-O\n".format(i))
             if p == 0:
-                predictions.append("Non-offensive\n")
+                predictions.append("{}-N\n".format(i))
+            i+=1
+
     with open(output_file, 'w') as output_file:
         output_file.writelines(predictions)
+
+def evaluate_sentences(input_file, predictions):
+    sentences = []
+    
 
 
 def build_dataset(input_file_loc):
