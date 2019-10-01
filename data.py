@@ -6,6 +6,8 @@ import torch
 from torchtext import data
 from torchtext import datasets
 
+import spacy
+
 data_folder = 'dataset'
 
 
@@ -21,7 +23,7 @@ def csv_to_dict(csv_path, delimiter=','):
 def preprocess_data(data_folder=data_folder, train_size=0.8):
     text = data.Field(sequential=True, use_vocab=True,
                       init_token="<s>", eos_token="</s>",
-                      include_lengths=True)
+                      include_lengths=True, tokenize="spacy")
 
     label_a = data.LabelField(use_vocab=True)
     label_b = data.LabelField(use_vocab=True)
