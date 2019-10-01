@@ -154,18 +154,24 @@ if __name__ == "__main__":
     train_it, val_it, test_it = data.get_batch_iterators(
             64, train_set, val_set, test_set)
 
-    ground_truth, predictions, dropout_preds, ids = predict(model,test_it, num_samples=2)
+    ground_truth, predictions, dropout_preds, ids = predict(model,test_it, num_samples=100)
     np.savetxt('predictions.csv', predictions)
     np.savetxt('dropout_preds.csv', dropout_preds)
     np.savetxt('ground_truth.csv', ground_truth)
 
+
     sorted_variances = dropout_preds.var(axis=1).argsort(axis=0)
     max_indices, min_indices = sorted_variances[:5], sorted_variances[-5:] 
+    # print(dropout_preds.var(axis=1).max(axis=0))
+    # print(dropout_preds.var(axis=1).min(axis=0))
+    # for multiple models:
+    # [3 (#models), n_examples, num_samples]
+    # dropout_preds[2].var(axis=2).sum(axis=0).argmax()
 
     print ('hardest tweet ids:')
-    print ([ids[i] for i in max_indices])
+    print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in max_indices])
     print ('easiest tweet ids')
-    print ([ids[i] for i in min_indices])
+    print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in min_indices])
 
     ground_truth = ground_truth.reshape(
         1, ground_truth.shape[0], ground_truth.shape[1])
