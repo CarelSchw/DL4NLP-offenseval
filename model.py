@@ -154,14 +154,13 @@ class Main(nn.Module):
         self.hidden_dim = config['hidden_dim']
         self.n_classes = config['n_classes']
         self.dropout = config['dropout']
+        self.use_yang_attention = config['use_yang_attention']
 
         self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
         self.embedding.weight.data.copy_(vocab.vectors)
         self.embedding.weight.requires_grad = False
 
         self.bidirectional = False
-        self.use_yang_attention = True
-
 
         if config['encoder'] == "lstm":
             self.input_dim = self.input_dim * config['lstm_dim']

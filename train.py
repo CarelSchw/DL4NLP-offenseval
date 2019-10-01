@@ -50,6 +50,7 @@ model_config = {
     'dropout': params.dropout,
     'learning_rate': params.learning_rate,
     'weight_decay': params.weight_decay,
+    'use_yang_attention': False
 }
 
 
@@ -72,6 +73,10 @@ def train():
     model_config['embedding_dim'] = train_set.fields['text'].vocab.vectors.shape[1]
 
     model = Main(model_config, train_set.fields['text'].vocab)
+
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print (pytorch_total_params)
+
     model.to(device)
     grad_params = [p for p in model.parameters() if p.requires_grad]
     # weight = torch.FloatTensor(N_CLASSES).fill_(1)
