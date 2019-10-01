@@ -43,6 +43,7 @@ model_config = {
     'n_classes': N_CLASSES,
     'lstm_dim': 128,
     'encoder': params.model,
+    'dropout': 0.2,
 }
 
 
