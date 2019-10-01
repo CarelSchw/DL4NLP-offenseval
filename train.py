@@ -67,7 +67,7 @@ def train():
     grad_params = [p for p in model.parameters() if p.requires_grad]
     # weight = torch.FloatTensor(N_CLASSES).fill_(1)
     weight = torch.FloatTensor([0.3, 0.7])
-    ce_loss = nn.CrossEntropyLoss(weight=weight).to(device)
+    ce_loss = nn.CrossEntropyLoss(weight=weight, weight_decay=0.95).to(device)
 
     lr = LEARNING_RATE
     epoch = 1
