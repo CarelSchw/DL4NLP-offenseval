@@ -93,6 +93,7 @@ def predict(model, x, num_samples=1000):
     model.train()
     model.to(device)
     dropout_preds = np.array([])
+    ids = []
     for batch in x:
         dropout_preds_batch = np.array([])
         for i in range(num_samples):
@@ -102,7 +103,9 @@ def predict(model, x, num_samples=1000):
         dropout_preds = np.vstack([dropout_preds, dropout_preds_batch.transpose((1, 0))]
                        ) if dropout_preds.size else dropout_preds_batch.transpose((1, 0))
 
-    return ground_truth, predictions, dropout_preds
+        ids += list(batch.id.cpu().detach().numpy())
+
+    return ground_truth, predictions, dropout_preds, ids
 
 def get_confusion_data(ground_truth, prediction, dropout_pred):
     correct = ground_truth == prediction
@@ -151,26 +154,18 @@ if __name__ == "__main__":
     train_it, val_it, test_it = data.get_batch_iterators(
             64, train_set, val_set, test_set)
 
-    ground_truth, predictions, dropout_preds = predict(model,test_it, num_samples=100)
+    ground_truth, predictions, dropout_preds, ids = predict(model,test_it, num_samples=2)
     np.savetxt('predictions.csv', predictions)
     np.savetxt('dropout_preds.csv', dropout_preds)
     np.savetxt('ground_truth.csv', ground_truth)
 
-        
-    max_indices = dropout_preds.var(axis=1).argsort(axis=0)[:5]
-    min_indices = dropout_preds.var(axis=1).argsort(axis=0)[-5:]
+    sorted_variances = dropout_preds.var(axis=1).argsort(axis=0)
+    max_indices, min_indices = sorted_variances[:5], sorted_variances[-5:] 
 
-    # print (max_indices)
-    # print (min_indices)
-    # print (dropout_preds[max_indices[0]].var())
-    # print (dropout_preds[min_indices[0]].var())
-
-    tweet_list = open('./dataset/test.csv', "r").readlines()
-    print ('easiest tweets:')
-    print ([tweet_list[i][6:] for i in max_indices])
-    print ('hardest tweets')
-    print ([tweet_list[i][6:] for i in min_indices])
-
+    print ('hardest tweet ids:')
+    print ([ids[i] for i in max_indices])
+    print ('easiest tweet ids')
+    print ([ids[i] for i in min_indices])
 
     ground_truth = ground_truth.reshape(
         1, ground_truth.shape[0], ground_truth.shape[1])
