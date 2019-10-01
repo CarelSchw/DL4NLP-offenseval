@@ -13,8 +13,8 @@ from sklearn.metrics import confusion_matrix
 from model import Main
 
 
-LEARNING_RATE = 0.1
-WEIGHT_DECAY = 0.99
+LEARNING_RATE = 1e-3
+LR_DECAY = 0.99
 LR_DIVISION = 5
 MINIBATCH_SIZE = 64
 THRESHOLD = 10 ** -5
@@ -30,6 +30,10 @@ parser.add_argument("--save_model", type=bool, default=True),
 parser.add_argument("--outputdir", type=str,
                     default='savedir/', help="Output directory")
 parser.add_argument("--model", type=str, default='transformer')
+parser.add_argument('--dropout', type=float, default=0.2)
+parser.add_argument('--learning_rate', type=float, default=1e-3)
+parser.add_argument('--weight_decay', type=float, default=0.1)
+parser.add_argument('--epochs', type=int, default=20)
 
 params, _ = parser.parse_known_args()
 
@@ -43,7 +47,9 @@ model_config = {
     'n_classes': N_CLASSES,
     'lstm_dim': 128,
     'encoder': params.model,
-    'dropout': 0.2,
+    'dropout': params.dropout,
+    'learning_rate': params.learning_rate,
+    'weight_decay': params.weight_decay,
 }
 
 
@@ -59,6 +65,8 @@ def train():
     train_set, val_set, test_set = data.preprocess_data(
         data_folder=params.datadir)
 
+    print(model_config)
+
     print("Training model...")
     model_config['num_embeddings'] = train_set.fields['text'].vocab.vectors.shape[0]
     model_config['embedding_dim'] = train_set.fields['text'].vocab.vectors.shape[1]
@@ -68,18 +76,18 @@ def train():
     grad_params = [p for p in model.parameters() if p.requires_grad]
     # weight = torch.FloatTensor(N_CLASSES).fill_(1)
     weight = torch.FloatTensor([0.3, 0.7])
-    ce_loss = nn.CrossEntropyLoss(weight=weight, weight_decay=0.95).to(device)
+    ce_loss = nn.CrossEntropyLoss(weight=weight).to(device)
 
-    lr = LEARNING_RATE
+    lr = model_config['learning_rate']
     epoch = 1
     prev_dev_accuracy = 0
-    optimizer = optim.SGD(grad_params, lr)
+    optimizer = optim.Adam(grad_params, lr, weight_decay=model_config['weight_decay'])
     best_epoch = 0
-    while epoch < 20:
+    while epoch < params.epochs:
         # writer.add_scalar(
         #     'Learning rate', optimizer.param_groups[0]['lr'], epoch)
         optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * \
-            WEIGHT_DECAY if epoch > 1 else optimizer.param_groups[0]['lr']
+            LR_DECAY if epoch > 1 else optimizer.param_groups[0]['lr']
         train_it, val_it, test_it = data.get_batch_iterators(
             MINIBATCH_SIZE, train_set, val_set, test_set)
         train_loss = 0
@@ -131,16 +139,16 @@ def train():
         macro_recall = 0.0
         macro_f1 = 0.0
 
-        # non_zero_devision = 1e-3
+        non_zero_devision = 1e-6
         for i in range(2):
             precision = (true_positive[i] /
-                         (true_positive[i] + false_positive[i]))
+                         (true_positive[i] + false_positive[i] + non_zero_devision))
             macro_precision += precision
             recall = (true_positive[i] /
-                      (true_positive[i] + false_negative[i]))
+                      (true_positive[i] + false_negative[i]+non_zero_devision))
             macro_recall += recall
             macro_f1 += 2 * (precision*recall) / \
-                (precision+precision)
+                (precision+precision+ non_zero_devision)
 
         macro_precision /= 2
         macro_recall /= 2
@@ -150,12 +158,12 @@ def train():
             f'Precision: {macro_precision}\nRecall: {macro_recall}\nF1: {macro_f1}')
         accuracy = n_correct.item()/n_tested
 
-        if accuracy <= prev_dev_accuracy:
-            optimizer.param_groups[0]['lr'] /= 2
+        if macro_f1 <= prev_dev_accuracy:
+            # optimizer.param_groups[0]['lr'] /= 2
             lr = optimizer.param_groups[0]['lr']
             print(f"lr: {lr} and threshold: {THRESHOLD}")
         else:
-            prev_dev_accuracy = accuracy
+            prev_dev_accuracy = macro_f1
             best_epoch = epoch
             if (params.save_model):
                 torch.save(model, os.path.join(params.outputdir,
@@ -228,7 +236,7 @@ def validate(test_it, best_epoch, vocab, model_config):
     print('Test accuracy', accuracy)
     torch.save(model, os.path.join(
         params.outputdir, params.model + "_best.pt"))
-    predict(model, test_it)
+    # predict(model, test_it)
 
 def get_prediction(model, x):
     model.eval()

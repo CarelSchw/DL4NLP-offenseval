@@ -58,13 +58,14 @@ class YangAttnetion(nn.Module):
 
         self.word_attn = nn.Linear(lstm_dim, lstm_dim)
         self.context_vec = nn.Linear(lstm_dim, 1, bias=False)
+        self.dropout = nn.Dropout(p=.2)
 
     def forward(self, lstm_output):
         # page 1482 top right
         # eq 5, with tanh (from our report)
-        u_it = torch.tanh(self.word_attn(lstm_output))
+        u_it = torch.tanh(self.dropout(self.word_attn(lstm_output)))
         # eq 6
-        a_it = F.softmax(self.context_vec(u_it), dim=1)
+        a_it = F.softmax(self.dropout(self.context_vec(u_it)), dim=1)
         # eq 7
         attns = torch.Tensor().to(device)
         for (h, a) in zip(lstm_output, a_it):
@@ -73,7 +74,7 @@ class YangAttnetion(nn.Module):
             # add them to the attention vectors
             attns = torch.cat([attns, h_i])
 
-        s_i = torch.sum(attns, 1)
+        s_i = torch.sum(self.dropout(attns), 1)
         # unsqueeze to give back to FC layers
         s_i = s_i.unsqueeze(0)
 
