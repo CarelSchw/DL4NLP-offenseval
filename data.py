@@ -97,36 +97,42 @@ def preprocess_data(data_folder=data_folder, train_size=0.8):
         format='csv', fields=[('id', id_field), ('text', text), ('label_a', label_a), ('label_b', label_b), ('label_c', label_c)]
     )
 
+    tay_set = data.TabularDataset(
+        path=os.path.join(transformed_path, 'tay.csv'),
+        format='csv', fields=[('id', id_field), ('text', text), ('label_a', label_a), ('label_b', label_b), ('label_c', label_c)]
+    )
+   
+
     text.build_vocab(train_set, dev_set, test_set, vectors="glove.840B.300d")
     label_a.build_vocab(train_set, dev_set, test_set)
     label_b.build_vocab(train_set, dev_set, test_set)
     label_c.build_vocab(train_set, dev_set, test_set)
 
-    return train_set, dev_set, test_set
+    return train_set, dev_set, test_set, tay_set
 
 
-def get_batch_iterators(batch_size, train_set, val_set, test_set):
+def get_batch_iterators(batch_size, train_set, val_set, test_set, tay_set=[]):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    train_it, val_it, test_it = data.BucketIterator.splits(
-        datasets=(train_set, val_set, test_set),
+    train_it, val_it, test_it, tay_it = data.BucketIterator.splits(
+        datasets=(train_set, val_set, test_set, tay_set),
         batch_sizes=(
-            batch_size, batch_size, batch_size),
+            batch_size, batch_size, batch_size, batch_size),
         sort_key=lambda x: x.text,
         device=device,
         sort_within_batch=True,
         repeat=False,
     )
-    return train_it, val_it, test_it
+
+    return train_it, val_it, test_it, tay_it
 
 
 if __name__ == "__main__":
-    train_set, val_set, test_set = preprocess_data()
+    train_set, val_set, test_set, tay_set = preprocess_data()
     print(train_set.fields)
     print(train_set.fields['text'].vocab)
     print(train_set.fields['label_c'].vocab.stoi)
-    train_it, val_it, test_it = get_batch_iterators(
-        10, train_set, val_set, test_set)
-    # for batch in train_it:
-    #     print((batch.text))
+    train_it, val_it, test_it, tay_it = get_batch_iterators(
+        10, train_set, val_set, test_set, tay_set)
+
     vocab = train_set.fields['text'].vocab

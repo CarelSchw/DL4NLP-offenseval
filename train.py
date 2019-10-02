@@ -63,7 +63,7 @@ def adjust_learning_rate(optimizer, lr):
 def train():
     # get batch iterator
     print("preprocess")
-    train_set, val_set, test_set = data.preprocess_data(
+    train_set, val_set, test_set, _ = data.preprocess_data(
         data_folder=params.datadir)
 
     print(model_config)

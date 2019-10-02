@@ -8,6 +8,10 @@ from model import Main
 
 import numpy as np
 
+# tay tweet demo
+import csv
+import time
+
 import matplotlib.pyplot as plt
 
 
@@ -97,7 +101,7 @@ def predict(model, x, num_samples=1000):
     for batch in x:
         dropout_preds_batch = np.array([])
         for i in range(num_samples):
-            logits = torch.nn.functional.softmax(model(batch.text))[:,1]
+            logits = torch.nn.functional.softmax(model(batch.text), dim=-1)[:,1]
             dropout_preds_batch = np.vstack([dropout_preds_batch, logits.cpu().detach().numpy()]
                       ) if dropout_preds_batch.size else logits.cpu().detach().numpy()
         dropout_preds = np.vstack([dropout_preds, dropout_preds_batch.transpose((1, 0))]
@@ -148,13 +152,14 @@ if __name__ == "__main__":
     params, _ = parser.parse_known_args()
 
     print("preprocess")
-    train_set, val_set, test_set = data.preprocess_data(
+    train_set, val_set, test_set, tay_set = data.preprocess_data(
         data_folder=params.datadir)
     model = torch.load(params.checkpoint, map_location=device)
-    train_it, val_it, test_it = data.get_batch_iterators(
-            64, train_set, val_set, test_set)
+    train_it, val_it, test_it, tay_it = data.get_batch_iterators(
+            64, train_set, val_set, test_set, tay_set)
 
-    ground_truth, predictions, dropout_preds, ids = predict(model,test_it, num_samples=100)
+ 
+    ground_truth, predictions, dropout_preds, ids = predict(model,tay_it, num_samples=100)
     np.savetxt('predictions.csv', predictions)
     np.savetxt('dropout_preds.csv', dropout_preds)
     np.savetxt('ground_truth.csv', ground_truth)
@@ -167,11 +172,24 @@ if __name__ == "__main__":
     # for multiple models:
     # [3 (#models), n_examples, num_samples]
     # dropout_preds[2].var(axis=2).sum(axis=0).argmax()
+    tay_tweets = []
+    with open('dataset/transformed/tay.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        tay_tweets = [tweet[1] for tweet in csv_reader]
 
-    print ('hardest tweet ids:')
-    print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in max_indices])
-    print ('easiest tweet ids')
-    print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in min_indices])
+    print ('MODEL SAYSSSS:')
+    for i, tweet in enumerate(tay_tweets):
+        pred_index = ids.index(i+1)
+        lam_print = lambda x: 'OFF' if x == 1 else 'NOT'
+        pred = predictions[pred_index].item()
+        truth = ground_truth[pred_index].item() 
+        print ('{}{} (was {}): {}'.format('X ' if pred != truth else '', lam_print(pred), lam_print(truth), tweet))
+        time.sleep(1.5)
+
+    #print ('hardest tweet ids:')
+    #print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in max_indices])
+    #print ('easiest tweet ids')
+    #print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in min_indices])
 
     ground_truth = ground_truth.reshape(
         1, ground_truth.shape[0], ground_truth.shape[1])
@@ -181,8 +199,6 @@ if __name__ == "__main__":
     data = (ground_truth, predictions, dropout_preds)
 
 
-
-
     # data = get_confusion_data(ground_truth, predictions, dropout_preds)
     get_boxplots(data)
-    validate(test_it, model)
+    validate(tay_it, model)
