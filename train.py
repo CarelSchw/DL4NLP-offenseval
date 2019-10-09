@@ -34,6 +34,7 @@ parser.add_argument('--dropout', type=float, default=0.2)
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=0.1)
 parser.add_argument('--epochs', type=int, default=20)
+parser.add_argument('--attention', type=bool, default=False)
 
 params, _ = parser.parse_known_args()
 
@@ -50,7 +51,7 @@ model_config = {
     'dropout': params.dropout,
     'learning_rate': params.learning_rate,
     'weight_decay': params.weight_decay,
-    'use_yang_attention': False
+    'use_yang_attention': params.attention
 }
 
 
@@ -93,7 +94,7 @@ def train():
         #     'Learning rate', optimizer.param_groups[0]['lr'], epoch)
         optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * \
             LR_DECAY if epoch > 1 else optimizer.param_groups[0]['lr']
-        train_it, val_it, test_it = data.get_batch_iterators(
+        train_it, val_it, test_it, _ = data.get_batch_iterators(
             MINIBATCH_SIZE, train_set, val_set, test_set)
         train_loss = 0
         train_loss_epoch = 0

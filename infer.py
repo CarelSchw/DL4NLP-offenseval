@@ -56,7 +56,6 @@ def infer(checkpoint, input_file, output_file):
                 predictions.append("{}-N\n".format(i))
             i+=1
 
-    print (ids)
     with open(output_file, 'w') as output_file:
         output_file.writelines(predictions)
 

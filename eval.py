@@ -159,7 +159,7 @@ if __name__ == "__main__":
             64, train_set, val_set, test_set, tay_set)
 
  
-    ground_truth, predictions, dropout_preds, ids = predict(model,tay_it, num_samples=100)
+    ground_truth, predictions, dropout_preds, ids = predict(model,test_it, num_samples=100)
     np.savetxt('predictions.csv', predictions)
     np.savetxt('dropout_preds.csv', dropout_preds)
     np.savetxt('ground_truth.csv', ground_truth)
@@ -172,6 +172,8 @@ if __name__ == "__main__":
     # for multiple models:
     # [3 (#models), n_examples, num_samples]
     # dropout_preds[2].var(axis=2).sum(axis=0).argmax()
+    
+    '''
     tay_tweets = []
     with open('dataset/transformed/tay.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
@@ -185,6 +187,7 @@ if __name__ == "__main__":
         truth = ground_truth[pred_index].item() 
         print ('{}{} (was {}): {}'.format('X ' if pred != truth else '', lam_print(pred), lam_print(truth), tweet))
         time.sleep(1.5)
+    '''
 
     #print ('hardest tweet ids:')
     #print ([(predictions[i].item(), ground_truth[i].item(), ids[i]) for i in max_indices])
@@ -198,7 +201,6 @@ if __name__ == "__main__":
     
     data = (ground_truth, predictions, dropout_preds)
 
-
     # data = get_confusion_data(ground_truth, predictions, dropout_preds)
     get_boxplots(data)
-    validate(tay_it, model)
+    validate(test_it, model)
